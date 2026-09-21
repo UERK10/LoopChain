@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>loopChain — Canlı Jüri Simülasyonu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #191d23; --panel: #21262e; --panel-2: #262c35; --line: #383f4a;
+    --text: #e9ecef; --muted: #9aa4b2; --copper: #c97a4a; --copper-dim: #8f5636;
+    --steel: #6f93a6; --good: #7fa876; --warn: #cf9a3f; --bad: #c1614f; --radius: 3px;
+    font-size: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
+  h1, h2, h3 { font-family: 'Archivo', system-ui, sans-serif; letter-spacing: -0.01em; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  .config-warning { background: #3a2530; border: 1px solid var(--bad); color: #f0b8ae; padding: 16px 20px; border-radius: var(--radius); margin: 20px; font-size: 0.9rem; line-height: 1.6; }
+  .config-warning code { background: #241a1d; padding: 2px 6px; border-radius: 2px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,12,15,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-overlay.hidden { display: none; }
+  .modal-box { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--copper); border-radius: var(--radius); padding: 28px; max-width: 440px; width: 100%; }
+  .modal-box h2 { font-size: 1.25rem; margin: 0 0 8px; }
+  .modal-box p { color: var(--muted); font-size: 0.86rem; line-height: 1.5; margin: 0 0 18px; }
+  .modal-box label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
+  .modal-box input[type=text] { width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius); padding: 10px; font-family: inherit; font-size: 0.95rem; margin-bottom: 16px; }
+  .role-choice { display: flex; gap: 8px; margin-bottom: 20px; }
+  .role-opt { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius); padding: 14px 10px; cursor: pointer; font-family: inherit; font-size: 0.88rem; text-align: center; }
+  .role-opt.selected { border-color: var(--copper); background: rgba(201,122,74,0.14); color: var(--copper); font-weight: 600; }
+  .role-opt .sub { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 3px; font-weight: 400; }
+  .role-opt.selected .sub { color: var(--copper); opacity: 0.8; }
+  .modal-err { color: var(--bad); font-size: 0.8rem; margin: -10px 0 14px; display: none; }
+
+  header.top { border-bottom: 2px solid var(--copper); padding-bottom: 18px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  header.top .mark { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--copper); letter-spacing: 0.04em; }
+  header.top h1 { font-size: 1.5rem; margin: 4px 0 6px; font-weight: 800; }
+  header.top p { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 42ch; }
+  .teams-panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; background: var(--panel); min-width: 200px; }
+  .teams-panel .lbl { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--muted); display: block; margin-bottom: 8px; }
+  .team-chip { display: inline-block; font-size: 0.78rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px 10px; margin: 0 5px 5px 0; }
+  .team-chip.mine { border-color: var(--copper); color: var(--copper); }
+
+  .role-badge { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem; color: var(--muted); margin-bottom: 22px; }
+  .role-badge .pill { border: 1px solid var(--copper); color: var(--copper); border-radius: 10px; padding: 3px 10px; }
+  .role-badge button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-family: inherit; font-size: inherit; padding: 0; }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--bad); }
+  .conn-dot.live { background: var(--good); }
+
+  .presenter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); background: var(--panel); padding: 12px 16px; border-radius: var(--radius); margin-bottom: 22px; }
+  .presenter-bar label { font-family: 'IBM Plex Mono', monospace; font-size: 0.74rem; color: var(--muted); }
+  .presenter-bar input[type=text] { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius); padding: 7px 10px; font-family: inherit; font-size: 0.9rem; min-width: 180px; }
+  .presenter-bar .current { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--copper); margin-left: auto; }
+
+  .spotlight { border: 1px solid var(--line); border-left: 4px solid var(--copper); background: var(--panel); padding: 20px; border-radius: var(--radius); margin-bottom: 28px; }
+  .spotlight .empty { color: var(--muted); font-size: 0.94rem; }
+  .spotlight .role-tag { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--copper); margin-bottom: 8px; display: block; }
+  .spotlight .qtext { font-size: 1.15rem; line-height: 1.5; margin: 0 0 16px; }
+
+  .timer-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+  .timer-num { font-family: 'IBM Plex Mono', monospace; font-size: 2.1rem; font-weight: 600; min-width: 2.6ch; }
+  .timer-num.warn { color: var(--warn); }
+  .timer-num.bad { color: var(--bad); }
+  .timer-bar { flex: 1; min-width: 120px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .timer-bar > div { height: 100%; background: var(--copper); width: 100%; transition: width 0.3s linear, background 0.3s; }
+
+  .btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); padding: 9px 14px; border-radius: var(--radius); cursor: pointer; }
+  .btn:hover { border-color: var(--copper); }
+  .btn.primary { background: var(--copper); border-color: var(--copper); color: #1a1a1a; font-weight: 600; }
+  .btn.primary:hover { background: #d98a5b; }
+  .btn.ghost { background: transparent; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.small { padding: 6px 10px; font-size: 0.72rem; }
+
+  .rate-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .rate-row span.lbl { font-size: 0.85rem; color: var(--muted); margin-right: 4px; }
+  .rate-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); font-family: 'IBM Plex Mono', monospace; cursor: pointer; }
+  .rate-btn.selected { background: var(--copper); border-color: var(--copper); color: #1a1a1a; font-weight: 700; }
+
+  textarea.note { width: 100%; min-height: 64px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius); padding: 10px; font-family: inherit; font-size: 0.92rem; resize: vertical; margin-bottom: 14px; }
+  textarea.note::placeholder { color: #6b7280; }
+
+  .answer-box { border: 1px dashed var(--steel); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; background: rgba(111,147,166,0.08); display: none; }
+  .answer-box.shown { display: block; }
+  .answer-box .lbl { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--steel); display: block; margin-bottom: 6px; }
+  .answer-box p { margin: 0; font-size: 0.9rem; line-height: 1.55; color: var(--text); }
+
+  .waiting-note { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; color: var(--muted); font-size: 0.86rem; background: var(--panel-2); }
+
+  .stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
+  @media (max-width: 720px) { .stations { grid-template-columns: 1fr; } }
+  .station { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: var(--panel); }
+  .station .role-letter { font-family: 'IBM Plex Mono', monospace; color: var(--copper); font-size: 0.72rem; }
+  .station h3 { font-size: 1rem; margin: 4px 0 6px; }
+  .station .kriter { color: var(--muted); font-size: 0.78rem; margin: 0 0 14px; line-height: 1.4; }
+  .station .pool { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-top: 10px; }
+
+  .add-toggle { display: block; margin-top: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
+  .add-form { display: none; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .add-form.open { display: block; }
+  .add-form textarea { width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius); padding: 8px; font-family: inherit; font-size: 0.82rem; margin-bottom: 6px; min-height: 44px; resize: vertical; }
+  .add-form label { font-size: 0.7rem; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+
+  h2.section-h { font-size: 1.1rem; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+  h2.section-h .avg { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: var(--copper); }
+
+  table.log { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  table.log th, table.log td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.log th { font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: var(--muted); font-size: 0.72rem; }
+  table.log td.qcol { max-width: 320px; }
+  .score-pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line); }
+  .empty-log { color: var(--muted); font-size: 0.88rem; padding: 16px 0; }
+
+  .presenter-summary { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 30px; }
+  .presenter-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; background: var(--panel); min-width: 140px; }
+  .presenter-card .pname { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+  .presenter-card .pscore { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: var(--copper); }
+  .presenter-card .pcount { font-size: 0.72rem; color: var(--muted); }
+
+  .rules { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; background: var(--panel); margin-top: 30px; }
+  .rules h3 { font-size: 0.95rem; margin: 0 0 10px; }
+  .rules ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.86rem; line-height: 1.7; }
+
+  footer.note { margin-top: 40px; color: #5c6572; font-size: 0.78rem; text-align: center; }
+  body.role-yarismaci .juri-only { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="config-warning-slot"></div>
+
+<div class="modal-overlay" id="role-modal">
+  <div class="modal-box">
+    <h2>loopChain Canlı Jüri</h2>
+    <p>İsminizi, takımınızı ve rolünüzü seçin. Aynı takımı yazan herkes aynı odaya girer — jüri soru çektiğinde tüm takım arkadaşlarının ekranında anında görünür.</p>
+    <label for="modal-name">İsminiz</label>
+    <input type="text" id="modal-name" placeholder="ör. Nariman">
+    <label for="modal-team">Takım adı</label>
+    <input type="text" id="modal-team" list="team-history" placeholder="ör. loopChain">
+    <datalist id="team-history"></datalist>
+    <label>Rolünüz</label>
+    <div class="role-choice">
+      <button class="role-opt" data-choose="juri">Jüri Üyesi<span class="sub">soru sorar, puanlar</span></button>
+      <button class="role-opt" data-choose="yarismaci">Yarışmacı<span class="sub">cevap verir</span></button>
+    </div>
+    <div class="modal-err" id="modal-err"></div>
+    <button class="btn primary" id="modal-start" disabled style="width:100%;">Odaya Katıl</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <span class="mark">EU CLIMATE IDEATHON 2026 · KOCAELİ</span>
+      <h1>loopChain Canlı Jüri Simülasyonu</h1>
+      <p>Farklı cihazlardan aynı odaya katılın. Jüri soru çeker, tüm takım anında görür.</p>
+    </div>
+    <div class="teams-panel">
+      <span class="lbl">KATILAN TAKIMLAR</span>
+      <div id="teams-list">—</div>
+    </div>
+  </header>
+
+  <div class="role-badge">
+    <span class="conn-dot" id="conn-dot"></span>
+    <span id="conn-text">bağlanıyor…</span>
+    <span>·</span>
+    <span>Takım: <b id="team-pill">—</b></span>
+    <span>·</span>
+    <span>Rolünüz:</span>
+    <span class="pill" id="role-pill">—</span>
+    <button id="role-switch">odadan çık</button>
+  </div>
+
+  <div class="juri-only" style="font-size:0.8rem; color:var(--muted); margin-bottom:16px;">Yarışmacı ekranında soru çekme, örnek cevap ve puanlama kontrolleri görünmez — sadece jüri ekranında.</div>
+
+  <div class="presenter-bar juri-only">
+    <label for="presenter-input">Şu an sunan:</label>
+    <input type="text" id="presenter-input" placeholder="isim yazın (ör. Göktuğ)">
+    <span class="current" id="presenter-current"></span>
+  </div>
+
+  <div class="spotlight" id="spotlight">
+    <div class="empty" id="spotlight-empty">Henüz soru çekilmedi.</div>
+    <div id="spotlight-content" style="display:none;">
+      <span class="role-tag" id="sp-role"></span>
+      <p class="qtext" id="sp-question"></p>
+      <div class="timer-row">
+        <div class="timer-num" id="timer-num">60</div>
+        <div class="timer-bar"><div id="timer-fill"></div></div>
+        <button class="btn juri-only" id="timer-start">Başlat</button>
+        <button class="btn juri-only" id="timer-reset">Sıfırla</button>
+      </div>
+      <button class="btn ghost small juri-only" id="toggle-answer">Örnek Cevabı Göster</button>
+      <div class="answer-box juri-only" id="answer-box">
+        <span class="lbl">ÖRNEK / İDEAL CEVAP YAKLAŞIMI</span>
+        <p id="answer-text"></p>
+      </div>
+      <div class="rate-row juri-only">
+        <span class="lbl">Cevap kalitesi:</span>
+        <button class="rate-btn" data-score="1">1</button>
+        <button class="rate-btn" data-score="2">2</button>
+        <button class="rate-btn" data-score="3">3</button>
+        <button class="rate-btn" data-score="4">4</button>
+        <button class="rate-btn" data-score="5">5</button>
+      </div>
+      <textarea class="note juri-only" id="sp-note" placeholder="Not: neyi iyi anlattı, ne eksikti?"></textarea>
+      <button class="btn primary juri-only" id="sp-save">Kaydet ve Sıradaki</button>
+      <button class="btn juri-only" id="sp-discard">Bu Soruyu İptal Et</button>
+    </div>
+  </div>
+
+  <div class="stations juri-only">
+    <div class="station">
+      <span class="role-letter">JÜRİ A</span>
+      <h3>Teknik &amp; Uygulanabilirlik</h3>
+      <p class="kriter">Kriter 1, 3, 4, 9</p>
+      <button class="btn primary" data-role="A">Soru Çek</button>
+      <div class="pool" id="pool-A"></div>
+      <button class="add-toggle" data-addrole="A">+ kendi sorumuzu ekle</button>
+      <div class="add-form" id="addform-A">
+        <label>Soru</label><textarea id="addq-A"></textarea>
+        <label>Örnek cevap (opsiyonel)</label><textarea id="adda-A"></textarea>
+        <button class="btn small primary" data-saverole="A">Havuza Ekle</button>
+      </div>
+    </div>
+    <div class="station">
+      <span class="role-letter">JÜRİ B</span>
+      <h3>Finansal &amp; İş Modeli</h3>
+      <p class="kriter">Kriter 5, 6, 8</p>
+      <button class="btn primary" data-role="B">Soru Çek</button>
+      <div class="pool" id="pool-B"></div>
+      <button class="add-toggle" data-addrole="B">+ kendi sorumuzu ekle</button>
+      <div class="add-form" id="addform-B">
+        <label>Soru</label><textarea id="addq-B"></textarea>
+        <label>Örnek cevap (opsiyonel)</label><textarea id="adda-B"></textarea>
+        <button class="btn small primary" data-saverole="B">Havuza Ekle</button>
+      </div>
+    </div>
+    <div class="station">
+      <span class="role-letter">JÜRİ C</span>
+      <h3>Etki &amp; Veri</h3>
+      <p class="kriter">Kriter 2, 7, 10</p>
+      <button class="btn primary" data-role="C">Soru Çek</button>
+      <div class="pool" id="pool-C"></div>
+      <button class="add-toggle" data-addrole="C">+ kendi sorumuzu ekle</button>
+      <div class="add-form" id="addform-C">
+        <label>Soru</label><textarea id="addq-C"></textarea>
+        <label>Örnek cevap (opsiyonel)</label><textarea id="adda-C"></textarea>
+        <button class="btn small primary" data-saverole="C">Havuza Ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="waiting-note" id="waiting-note" style="display:none;">Yarışmacı ekranındasınız — soru çekme, cevap görme ve puanlama kontrolleri jüri ekranında.</div>
+
+  <h2 class="section-h">Sunucuya Göre Ortalama</h2>
+  <div class="presenter-summary" id="presenter-summary"><span class="empty-log">Henüz kayıt yok.</span></div>
+
+  <h2 class="section-h">Seans Kaydı <span class="avg" id="avg-display"></span></h2>
+  <div id="log-wrap">
+    <p class="empty-log" id="log-empty">Kaydedilen soru yok.</p>
+    <table class="log" id="log-table" style="display:none;">
+      <thead><tr><th>Sunan</th><th>Jüri</th><th>Soru</th><th>Puan</th><th>Not</th></tr></thead>
+      <tbody id="log-body"></tbody>
+    </table>
+  </div>
+
+  <div class="rules">
+    <h3>Rehberin cevaplama kuralları</h3>
+    <ul>
+      <li>Soruyu sonuna kadar dinleyin.</li>
+      <li>Bilmediğiniz veriyi biliyormuş gibi sunmayın.</li>
+      <li>Savunmaya geçmeyin; yaklaşımınızı açıklayın.</li>
+      <li>Kısa ve doğrudan cevap verin.</li>
+    </ul>
+  </div>
+
+  <footer class="note">loopChain ekibi için hazırlanan canlı pratik aracı</footer>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot,
+    query, orderBy, limit, where, getDocs, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  // ====== BURAYI KENDİ FIREBASE PROJENİZİN BİLGİLERİYLE DOLDURUN ======
+  const firebaseConfig = {
+    apiKey: "AIzaSyChEcICnoWAhsXAdIYDp2HvU3pDroRzq5c",
+    authDomain: "loopchain---juri.firebaseapp.com",
+    projectId: "loopchain---juri",
+    storageBucket: "loopchain---juri.firebasestorage.app",
+    messagingSenderId: "770905687073",
+    appId: "1:770905687073:web:a09eade1d925bf268d0f60",
+    measurementId: "G-6LX0SKJB5D"
+  };
+  // ======================================================================
+
+  var db = null;
+  var configOk = firebaseConfig.apiKey.indexOf("BURAYA_") !== 0;
+  if (configOk) {
+    try {
+      var app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+    } catch (e) {
+      configOk = false;
+      console.error(e);
+    }
+  }
+  if (!configOk) {
+    document.getElementById('config-warning-slot').innerHTML =
+      '<div class="config-warning"><b>Firebase yapılandırması eksik.</b> Dosyanın en altındaki <code>&lt;script type="module"&gt;</code> bloğunda <code>firebaseConfig</code> nesnesini kendi Firebase projenizin bilgileriyle doldurun. Talimatlar sohbette.</div>';
+  }
+
+  var baseBanks = {
+    A: [
+      { q: "Fabrikalar SAP/Oracle gibi kritik ERP sistemlerine sizin gibi yeni bir platformun API erişimine neden güvensin? Veri güvenliği nasıl sağlanacak?",
+        a: "Entegrasyon salt-okunur bir API üzerinden çalışır; sadece hammadde/atık miktarı ve türü gibi operasyonel veriye erişilir, üretim reçetesi veya fiyatlandırma gibi hassas veriler paylaşılmaz. KVKK/GDPR uyumlu şeffaf bir veri işleme sözleşmesi güveni sağlar." },
+      { q: "Çevre Kanunu Madde 19 kapsamındaki 'yan ürün' 4 kriterinin doğrulanmasını kim yapacak — siz mi, bağımsız bir denetçi mi?",
+        a: "Doğrulama bağımsız/akredite denetçi ağı üzerinden yapılır; loopChain hakem değil, kanıt ve evrak akışını dijitalleştiren taraftır." },
+      { q: "AB 333/2011 Tüzüğü'ndeki '%1'den az kirlilik' şartını pratikte nasıl kanıtlayacaksınız?",
+        a: "Akredite laboratuvar analiz raporları platforma yüklenir, Uygunluk Beyanı (DoC) bu raporlara dayanarak otomatik üretilir." },
+      { q: "Mevcut atık borsası veya sanayi simbiyoz platformlarından modelinizin somut farkı tam olarak nedir?",
+        a: "Reaktif modeller atık oluştuktan sonra ilan girilmesini bekler; loopChain ERP'den veri çekerek atığı oluşmadan önce alıcının üretim planına (BOM/MRP) yazar — proaktif zamanlama en büyük fark." },
+      { q: "Kurumsal satış döngüsü genelde uzun sürer — fabrikaları ikna etme süreniz yol haritanıza nasıl yansıyor?",
+        a: "İlk 6 ay MVP geliştirme ile pilot görüşmeleri paralel yürütülür; 6-12 ay pilot OSB'de yüksek dokunuşlu onboarding planlanmıştır." },
+      { q: "'Atıl kapasite sahipleri' segmentinde ilk 10 fabrikayı nasıl ikna edeceksiniz, somut bir planınız var mı?",
+        a: "Pilot OSB yönetimiyle iş birliği yapılarak ücretsiz deneme ve bertaraf maliyeti tasarrufu raporu sunulur." },
+      { q: "Bu sorunu hangi büyüklükte, kaç fabrika yaşıyor — rakamsal bir kanıtınız var mı?",
+        a: "18.7 milyon ton yıllık hurda ithalatı ve CBAM'ın metal/çelik ihracatçılarını doğrudan etkilemesi ölçek kanıtıdır." },
+      { q: "ERP entegrasyonu teknik olarak her fabrikada aynı şekilde mi çalışacak, yoksa her müşteri için özel mi geliştirilecek?",
+        a: "Standart bir API şeması ve hazır SAP/Oracle connector kullanılır; fabrikaya özel sadece parametre/haritalama ayarı yapılır." }
+    ],
+    B: [
+      { q: "SaaS abonelik ücreti ne kadar olacak? Komisyon oranınız yüzde kaç?",
+        a: "Kesin rakam pilot sürecinde netleşecek; benzer B2B pazaryerleri %2-5 komisyon aralığında çalışıyor." },
+      { q: "İlk 12 ayda kaç müşteriden ne kadar gelir bekliyorsunuz?",
+        a: "İlk 12 ayın önceliği gelir değil, pilot OSB'de kanıtlanmış kullanım; gelir hedefi ikinci yıldan itibaren devreye girer." },
+      { q: "Üç pilot bölge adayınız var — Eskişehir, İskenderun, İzmir. Hangisinden başlayacaksınız ve neden?",
+        a: "Eskişehir OSB, üretim yoğunluğu ve veri paylaşımına açık yönetim yapısıyla ilk aday." },
+      { q: "İki taraflı pazaryeri modellerinde önce alıcı mı yoksa satıcı mı tarafını kazanacaksınız?",
+        a: "Önce alıcı tarafı (CBAM baskısı hisseden ihracatçılar) kazanılır; talep netleşince satıcı tarafı doğal olarak gelir." },
+      { q: "Algoritmik eşleştirme yazılımı ve ERP entegrasyonu için tahmini geliştirme bütçesi ve süresi nedir?",
+        a: "MVP için ilk 6 ay, küçük bir teknik ekip planlanıyor; kesin bütçe fizibilite sonrası netleştirilecek." },
+      { q: "Yol haritanızdaki 3 aşamayı hangi somut, ölçülebilir hedeflerle tanımlıyorsunuz?",
+        a: "Aşama 1: MVP + küçük ölçekli test; Aşama 2: 1 pilot OSB'de onlarca fabrika; Aşama 3: ikinci bir OSB'ye genişleme." },
+      { q: "Rakipleriniz kim ve onlardan pazar payını nasıl alacaksınız?",
+        a: "Doğrudan proaktif rakip yok; dolaylı rakip geleneksel hurda tüccarları — fark hız ve veri güvenilirliği." },
+      { q: "Gelir modelinizin üç kalemi arasında hangisi ilk yılda ana gelir kaynağınız olacak?",
+        a: "İlk yıl muhtemelen SaaS abonelik ana kalem olur." }
+    ],
+    C: [
+      { q: "Kalundborg örneğindeki 586.000 ton CO2 azaltımı başka bir projeye ait — loopChain'in kendi 1. veya 3. yıl hedefi kaç ton?",
+        a: "Kalundborg 25 yıllık bir ağın sonucu; loopChain 3. yılda pilot OSB ölçeğinde somut bir hedef koyacak." },
+      { q: "%25-30 lojistik emisyon azaltımı rakamının kaynağı ne?",
+        a: "Clark-Wright rota optimizasyonunun lojistik literatüründeki tipik tasarruf aralığına dayanıyor." },
+      { q: "18.7 milyon ton hurda ithalatı rakamının kaynağı ve güncelliği nedir?",
+        a: "Dış ticaret istatistiklerine dayanıyor; sunumda dipnot olarak kaynak eklenmeli." },
+      { q: "CBAM vergi tırmanışı rakamlarınız hangi kaynağa dayanıyor?",
+        a: "AB Komisyonu'nun resmi CBAM phase-in takvimine dayanıyor." },
+      { q: "Jürinin aklında kalmasını istediğiniz tek cümle nedir — şimdi söyleyin.",
+        a: "'loopChain, atığı bir maliyet kaleminden stratejik bir hammadde ve karbon uyum fırsatına dönüştürür.'" },
+      { q: "Projenizin en büyük riski nedir ve bu risk gerçekleşirse ne yapacaksınız?",
+        a: "Fabrikaların ERP verisine erişim izni vermekte tereddüt etmesi; manuel veri girişiyle başlayıp güven oluşunca tam entegrasyona geçilecek." },
+      { q: "Etkiyi nasıl ölçeceksiniz — hangi göstergeyi, ne sıklıkla raporlayacaksınız?",
+        a: "Aylık ton bazlı malzeme transferi ve tahmini CO2 azaltımı otomatik rapor olarak sunulacak." }
+    ]
+  };
+  var roleLabel = { A: "JÜRİ A · Teknik & Uygulanabilirlik", B: "JÜRİ B · Finansal & İş Modeli", C: "JÜRİ C · Etki & Veri" };
+  var TIMER_DURATION = 60;
+
+  function safeGet(key, fallback){ try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; } }
+  function safeSet(key, value){ try { localStorage.setItem(key, JSON.stringify(value)); } catch(e){} }
+
+  var myRole = null, myName = safeGet('lc_name',''), myTeamName = safeGet('lc_team','');
+  var teamId = null;
+  var modal = document.getElementById('role-modal');
+  var modalName = document.getElementById('modal-name');
+  var modalTeam = document.getElementById('modal-team');
+  var modalStart = document.getElementById('modal-start');
+  var modalErr = document.getElementById('modal-err');
+  var pendingRole = null;
+
+  modalName.value = myName;
+  modalTeam.value = myTeamName;
+
+  document.querySelectorAll('.role-opt').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      pendingRole = btn.getAttribute('data-choose');
+      document.querySelectorAll('.role-opt').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      checkModalReady();
+    });
+  });
+  modalName.addEventListener('input', checkModalReady);
+  modalTeam.addEventListener('input', checkModalReady);
+  function checkModalReady(){ modalStart.disabled = !(modalName.value.trim() && modalTeam.value.trim() && pendingRole); }
+
+  var unsubTeams=null, unsubActive=null, unsubLog=null, unsubCustom=null;
+
+  modalStart.addEventListener('click', async function(){
+    if (!db) { modalErr.textContent = 'Firebase yapılandırılmadı — dosyanın altındaki firebaseConfig alanını doldurun.'; modalErr.style.display='block'; return; }
+    modalStart.disabled = true; modalStart.textContent = 'Bağlanıyor…';
+    myName = modalName.value.trim();
+    myTeamName = modalTeam.value.trim();
+    myRole = pendingRole;
+    safeSet('lc_name', myName); safeSet('lc_team', myTeamName);
+    try {
+      var teamsRef = collection(db, 'teams');
+      var q = query(teamsRef, where('name', '==', myTeamName), limit(1));
+      var snap = await getDocs(q);
+      if (!snap.empty) { teamId = snap.docs[0].id; }
+      else { var ref = await addDoc(teamsRef, { name: myTeamName, createdAt: serverTimestamp() }); teamId = ref.id; }
+      applyRole(myRole);
+      document.getElementById('team-pill').textContent = myTeamName;
+      modal.classList.add('hidden');
+      startTeamListeners();
+      document.getElementById('conn-text').textContent = 'canlı';
+      document.getElementById('conn-dot').classList.add('live');
+    } catch (e) {
+      console.error(e);
+      modalErr.textContent = 'Bağlantı hatası: ' + e.message;
+      modalErr.style.display = 'block';
+      modalStart.disabled = false; modalStart.textContent = 'Odaya Katıl';
+    }
+  });
+
+  document.getElementById('role-switch').addEventListener('click', function(){
+    if (unsubTeams) unsubTeams();
+    if (unsubActive) unsubActive();
+    if (unsubLog) unsubLog();
+    if (unsubCustom) unsubCustom();
+    location.reload();
+  });
+
+  function applyRole(role){
+    document.body.classList.remove('role-juri', 'role-yarismaci');
+    document.body.classList.add('role-' + role);
+    document.getElementById('role-pill').textContent = role === 'juri' ? 'Jüri Üyesi' : 'Yarışmacı';
+    document.getElementById('waiting-note').style.display = (role === 'yarismaci') ? 'block' : 'none';
+  }
+
+  // global teams list (all teams, any room)
+  if (db) {
+    unsubTeams = onSnapshot(collection(db, 'teams'), function(snap){
+      var el = document.getElementById('teams-list');
+      if (snap.empty) { el.textContent = 'henüz kimse yok'; return; }
+      el.innerHTML = '';
+      snap.forEach(function(d){
+        var span = document.createElement('span');
+        span.className = 'team-chip' + (d.id === teamId ? ' mine' : '');
+        span.textContent = d.data().name;
+        el.appendChild(span);
+      });
+    });
+  }
+
+  var customBanks = { A: [], B: [], C: [] };
+  var log = [];
+  var queues = {};
+
+  function allQuestions(role){ return baseBanks[role].concat(customBanks[role] || []); }
+  function refillQueue(role){
+    var arr = allQuestions(role).slice();
+    for (var i = arr.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    queues[role] = arr;
+  }
+  Object.keys(baseBanks).forEach(refillQueue);
+  function updatePoolLabel(role){ document.getElementById('pool-' + role).textContent = 'kalan soru: ' + queues[role].length + ' / ' + allQuestions(role).length; }
+  Object.keys(baseBanks).forEach(updatePoolLabel);
+
+  var spotlightEmpty = document.getElementById('spotlight-empty');
+  var spotlightContent = document.getElementById('spotlight-content');
+  var spRole = document.getElementById('sp-role');
+  var spQuestion = document.getElementById('sp-question');
+  var spNote = document.getElementById('sp-note');
+  var timerNum = document.getElementById('timer-num');
+  var timerFill = document.getElementById('timer-fill');
+  var answerBox = document.getElementById('answer-box');
+  var answerText = document.getElementById('answer-text');
+  var presenterInput = document.getElementById('presenter-input');
+  var presenterCurrent = document.getElementById('presenter-current');
+
+  var activeState = null;
+  var tickInterval = null;
+  var noteDebounce = null;
+
+  function activeDocRef(){ return doc(db, 'teams', teamId, 'session', 'active'); }
+
+  function renderSpotlight(){
+    if (!activeState) {
+      spotlightEmpty.style.display = 'block'; spotlightContent.style.display = 'none';
+      presenterCurrent.textContent = ''; clearInterval(tickInterval); return;
+    }
+    spotlightEmpty.style.display = 'none'; spotlightContent.style.display = 'block';
+    spRole.textContent = roleLabel[activeState.role];
+    spQuestion.textContent = activeState.question;
+    answerText.textContent = activeState.answer;
+    answerBox.classList.remove('shown');
+    document.getElementById('toggle-answer').textContent = 'Örnek Cevabı Göster';
+    if (document.activeElement !== spNote) spNote.value = activeState.note || '';
+    document.querySelectorAll('.rate-btn').forEach(function(b){
+      b.classList.toggle('selected', activeState.score === parseInt(b.getAttribute('data-score'), 10));
+    });
+    presenterCurrent.textContent = activeState.presenter ? ('→ ' + activeState.presenter + ' cevaplıyor') : '';
+    startTick();
+  }
+  function startTick(){ clearInterval(tickInterval); tickTimer(); tickInterval = setInterval(tickTimer, 250); }
+  function tickTimer(){
+    if (!activeState) return;
+    var remaining = TIMER_DURATION;
+    if (activeState.timerStartedAt) {
+      remaining = TIMER_DURATION - Math.floor((Date.now() - activeState.timerStartedAt) / 1000);
+      if (remaining < 0) remaining = 0;
+    }
+    timerNum.textContent = remaining;
+    timerFill.style.width = (remaining / TIMER_DURATION * 100) + '%';
+    timerNum.className = 'timer-num'; timerFill.style.background = 'var(--copper)';
+    if (remaining <= 10) { timerNum.className = 'timer-num bad'; timerFill.style.background = 'var(--bad)'; }
+    else if (remaining <= 25) { timerNum.className = 'timer-num warn'; timerFill.style.background = 'var(--warn)'; }
+  }
+
+  async function drawQuestion(role){
+    if (queues[role].length === 0) refillQueue(role);
+    var item = queues[role].pop();
+    updatePoolLabel(role);
+    var state = { role: role, question: item.q, answer: item.a, presenter: presenterInput.value.trim(), timerStartedAt: null, note: '', score: null };
+    await setDoc(activeDocRef(), state);
+  }
+  document.querySelectorAll('[data-role]').forEach(function(btn){
+    btn.addEventListener('click', function(){ drawQuestion(btn.getAttribute('data-role')); });
+  });
+
+  document.getElementById('toggle-answer').addEventListener('click', function(){
+    answerBox.classList.toggle('shown');
+    this.textContent = answerBox.classList.contains('shown') ? 'Örnek Cevabı Gizle' : 'Örnek Cevabı Göster';
+  });
+  document.getElementById('timer-start').addEventListener('click', function(){
+    if (!activeState) return;
+    setDoc(activeDocRef(), Object.assign({}, activeState, { timerStartedAt: Date.now() }));
+  });
+  document.getElementById('timer-reset').addEventListener('click', function(){
+    if (!activeState) return;
+    setDoc(activeDocRef(), Object.assign({}, activeState, { timerStartedAt: null }));
+  });
+  document.querySelectorAll('.rate-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (!activeState) return;
+      setDoc(activeDocRef(), Object.assign({}, activeState, { score: parseInt(btn.getAttribute('data-score'), 10) }));
+    });
+  });
+  spNote.addEventListener('input', function(){
+    if (!activeState) return;
+    clearTimeout(noteDebounce);
+    var val = spNote.value;
+    noteDebounce = setTimeout(function(){ setDoc(activeDocRef(), Object.assign({}, activeState, { note: val })); }, 400);
+  });
+
+  var logBody = document.getElementById('log-body');
+  var logTable = document.getElementById('log-table');
+  var logEmpty = document.getElementById('log-empty');
+  var avgDisplay = document.getElementById('avg-display');
+  var presenterSummary = document.getElementById('presenter-summary');
+
+  function renderPresenterSummary(){
+    var byName = {};
+    log.forEach(function(e){ if (!e.presenter) return; if (!byName[e.presenter]) byName[e.presenter] = []; if (e.score) byName[e.presenter].push(e.score); });
+    var names = Object.keys(byName);
+    if (names.length === 0) { presenterSummary.innerHTML = '<span class="empty-log">Henüz kayıt yok.</span>'; return; }
+    presenterSummary.innerHTML = '';
+    names.forEach(function(name){
+      var scores = byName[name];
+      var avg = scores.length ? (scores.reduce(function(s,v){return s+v;},0) / scores.length).toFixed(1) : '—';
+      var div = document.createElement('div');
+      div.className = 'presenter-card';
+      div.innerHTML = '<div class="pname">' + name + '</div><div class="pscore">' + avg + '/5</div><div class="pcount">' + scores.length + ' puanlı soru</div>';
+      presenterSummary.appendChild(div);
+    });
+  }
+  function renderLog(){
+    if (log.length === 0) { logTable.style.display = 'none'; logEmpty.style.display = 'block'; avgDisplay.textContent = ''; }
+    else {
+      logEmpty.style.display = 'none'; logTable.style.display = 'table'; logBody.innerHTML = '';
+      log.forEach(function(entry){
+        var tr = document.createElement('tr');
+        var scoreColor = entry.score >= 4 ? 'var(--good)' : (entry.score >= 3 ? 'var(--warn)' : 'var(--bad)');
+        tr.innerHTML = '<td>' + (entry.presenter || '—') + '</td><td>' + entry.role + '</td><td class="qcol">' + entry.question + '</td>' +
+          '<td><span class="score-pill" style="color:' + scoreColor + '; border-color:' + scoreColor + '">' + (entry.score || '—') + '/5</span></td>' +
+          '<td>' + (entry.note || '<span style="color:var(--muted)">—</span>') + '</td>';
+        logBody.appendChild(tr);
+      });
+      var scored = log.filter(function(e){ return e.score; });
+      avgDisplay.textContent = scored.length ? ('ortalama: ' + (scored.reduce(function(s,e){return s+e.score;},0)/scored.length).toFixed(1) + '/5 · ' + log.length + ' soru') : (log.length + ' soru');
+    }
+    renderPresenterSummary();
+  }
+
+  document.getElementById('sp-save').addEventListener('click', async function(){
+    if (!activeState) return;
+    await addDoc(collection(db, 'teams', teamId, 'log'), {
+      presenter: activeState.presenter, role: activeState.role, question: activeState.question,
+      score: activeState.score, note: activeState.note, createdAt: serverTimestamp()
+    });
+    await deleteDoc(activeDocRef());
+  });
+  document.getElementById('sp-discard').addEventListener('click', function(){ deleteDoc(activeDocRef()); });
+
+  document.querySelectorAll('.add-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){ document.getElementById('addform-' + btn.getAttribute('data-addrole')).classList.toggle('open'); });
+  });
+  document.querySelectorAll('[data-saverole]').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      var role = btn.getAttribute('data-saverole');
+      var qEl = document.getElementById('addq-' + role), aEl = document.getElementById('adda-' + role);
+      var qText = qEl.value.trim();
+      if (!qText) { qEl.focus(); return; }
+      await addDoc(collection(db, 'teams', teamId, 'customQuestions'), { role: role, q: qText, a: aEl.value.trim() || 'Bu soru için henüz örnek cevap eklenmedi.' });
+      qEl.value = ''; aEl.value = '';
+      document.getElementById('addform-' + role).classList.remove('open');
+    });
+  });
+
+  function startTeamListeners(){
+    unsubActive = onSnapshot(activeDocRef(), function(snap){
+      activeState = snap.exists() ? snap.data() : null;
+      renderSpotlight();
+    });
+    var logQ = query(collection(db, 'teams', teamId, 'log'), orderBy('createdAt', 'desc'), limit(50));
+    unsubLog = onSnapshot(logQ, function(snap){
+      log = []; snap.forEach(function(d){ log.push(d.data()); });
+      renderLog();
+    });
+    unsubCustom = onSnapshot(collection(db, 'teams', teamId, 'customQuestions'), function(snap){
+      var byRole = { A: [], B: [], C: [] };
+      snap.forEach(function(d){ var v = d.data(); if (byRole[v.role]) byRole[v.role].push({ q: v.q, a: v.a }); });
+      customBanks = byRole;
+      Object.keys(baseBanks).forEach(updatePoolLabel);
+    });
+  }
+</script>
+</body>
+</html>
