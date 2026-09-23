@@ -415,7 +415,8 @@
       var snap = await getDocs(q);
       if (!snap.empty) { teamId = snap.docs[0].id; }
       else { var ref = await addDoc(teamsRef, { name: myTeamName, createdAt: serverTimestamp() }); teamId = ref.id; }
-      await setDoc(doc(db, 'teams', teamId, 'members', myMemberId()), { name: myName, role: myRole, joinedAt: serverTimestamp() });
+      await setDoc(doc(db, 'teams', teamId, 'members', myMemberId()), { name: myName, role: myRole, joinedAt: serverTimestamp(), lastSeen: serverTimestamp() });
+      startPresence();
       applyRole(myRole);
       document.getElementById('team-pill').textContent = myTeamName;
       modal.classList.add('hidden');
@@ -430,7 +431,32 @@
     }
   });
  
-  document.getElementById('role-switch').addEventListener('click', function(){
+  // ---- Anlık katılım (presence): sadece şu an odada olanlar gösterilir ----
+  var PRESENCE_TTL = 45000;     // bu süre içinde sinyal vermeyen kişi listeden düşer
+  var HEARTBEAT_MS = 15000;
+  var heartbeatTimer = null;
+  function beat(){
+    if (!db || !teamId || !myRole) return;
+    setDoc(doc(db, 'teams', teamId, 'members', myMemberId()),
+      { name: myName, role: myRole, lastSeen: serverTimestamp() }, { merge: true }).catch(function(){});
+  }
+  function startPresence(){
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(beat, HEARTBEAT_MS);
+    document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') beat(); });
+    window.addEventListener('pagehide', leaveRoom);
+    window.addEventListener('beforeunload', leaveRoom);
+    // sinyali kesilenleri düşürmek için listeyi düzenli yeniden çiz
+    setInterval(renderTeamsContainer, 10000);
+  }
+  function leaveRoom(){
+    if (!db || !teamId) return Promise.resolve();
+    return deleteDoc(doc(db, 'teams', teamId, 'members', myMemberId())).catch(function(){});
+  }
+ 
+  document.getElementById('role-switch').addEventListener('click', async function(){
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    await leaveRoom();
     if (unsubTeams) unsubTeams();
     if (unsubActive) unsubActive();
     if (unsubLog) unsubLog();
@@ -451,30 +477,36 @@
   var teamsMeta = {};
   function renderTeamsContainer(){
     var el = document.getElementById('teams-container');
-    var ids = Object.keys(teamsMeta);
-    if (ids.length === 0) { el.textContent = 'henüz kimse yok'; return; }
+    var now = Date.now();
+    var me = myMemberId();
+    var shown = 0;
     el.innerHTML = '';
-    ids.forEach(function(id){
+    Object.keys(teamsMeta).forEach(function(id){
       var t = teamsMeta[id];
+      // sadece şu an aktif olan üyeler (kendim her zaman aktifim)
+      var active = (t.members || []).filter(function(m){
+        return m.id === me || (m.lastSeen && (now - m.lastSeen) < PRESENCE_TTL);
+      });
+      if (active.length === 0) return;   // aktif kimse yoksa takımı hiç gösterme
+      shown++;
       var block = document.createElement('div');
       block.className = 'team-block' + (id === teamId ? ' mine' : '');
       var h = document.createElement('h4');
       h.textContent = t.name;
       block.appendChild(h);
-      if (!t.members || t.members.length === 0) {
-        var e = document.createElement('div'); e.className = 'empty-members'; e.textContent = 'henüz kimse yok';
-        block.appendChild(e);
-      } else {
-        t.members.forEach(function(m){
-          var roleTxt = m.role === 'juri' ? 'Jüri Üyesi' : 'Yarışmacı';
-          var chip = document.createElement('span');
-          chip.className = 'member-chip role-' + m.role + (m.id === myMemberId() ? ' me' : '');
-          chip.innerHTML = '<span class="dot"></span>' + (m.name || 'İsimsiz') + ' <span class="rlabel">(' + roleTxt + ')</span>';
-          block.appendChild(chip);
-        });
-      }
+      active.forEach(function(m){
+        var roleTxt = m.role === 'juri' ? 'Jüri Üyesi' : 'Yarışmacı';
+        var chip = document.createElement('span');
+        chip.className = 'member-chip role-' + m.role + (m.id === me ? ' me' : '');
+        var dot = document.createElement('span'); dot.className = 'dot';
+        var nm = document.createTextNode(' ' + (m.name || 'İsimsiz') + ' ');
+        var rl = document.createElement('span'); rl.className = 'rlabel'; rl.textContent = '(' + roleTxt + ')';
+        chip.appendChild(dot); chip.appendChild(nm); chip.appendChild(rl);
+        block.appendChild(chip);
+      });
       el.appendChild(block);
     });
+    if (shown === 0) el.textContent = 'henüz kimse yok';
   }
   if (db) {
     unsubTeams = onSnapshot(collection(db, 'teams'), function(snap){
@@ -490,7 +522,7 @@
         if (!teamMembersUnsub[id]) {
           teamMembersUnsub[id] = onSnapshot(collection(db, 'teams', id, 'members'), function(msnap){
             var arr = [];
-            msnap.forEach(function(md){ var v = md.data(); arr.push({ id: md.id, name: v.name, role: v.role }); });
+            msnap.forEach(function(md){ var v = md.data({ serverTimestamps: 'estimate' }); arr.push({ id: md.id, name: v.name, role: v.role, lastSeen: v.lastSeen && v.lastSeen.toMillis ? v.lastSeen.toMillis() : 0 }); });
             teamsMeta[id].members = arr;
             renderTeamsContainer();
           });
