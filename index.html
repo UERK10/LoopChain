@@ -40,13 +40,11 @@
   header.top .mark { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--copper); letter-spacing: 0.04em; }
   header.top h1 { font-size: 1.5rem; margin: 4px 0 6px; font-weight: 800; }
   header.top p { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 42ch; }
-  .teams-panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; background: var(--panel); min-width: 200px; }
-  .teams-panel .lbl { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--muted); display: block; margin-bottom: 8px; }
-  .team-chip { display: inline-block; font-size: 0.78rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px 10px; margin: 0 5px 5px 0; }
-  .team-chip.mine { border-color: var(--copper); color: var(--copper); }
- 
-  .roster-panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; background: var(--panel); margin-bottom: 20px; }
-  .roster-panel .lbl { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--muted); display: block; margin-bottom: 8px; }
+  .teams-section { margin-bottom: 24px; }
+  .team-block { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; background: var(--panel); margin-bottom: 10px; }
+  .team-block.mine { border-color: var(--copper); }
+  .team-block h4 { margin: 0 0 8px; font-size: 0.94rem; }
+  .team-block .empty-members { color: var(--muted); font-size: 0.8rem; }
   .member-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px 4px 6px; margin: 0 6px 6px 0; }
   .member-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
   .member-chip.role-juri .dot { background: var(--copper); }
@@ -59,11 +57,6 @@
   .role-badge button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-family: inherit; font-size: inherit; padding: 0; }
   .conn-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--bad); }
   .conn-dot.live { background: var(--good); }
- 
-  .presenter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); background: var(--panel); padding: 12px 16px; border-radius: var(--radius); margin-bottom: 22px; }
-  .presenter-bar label { font-family: 'IBM Plex Mono', monospace; font-size: 0.74rem; color: var(--muted); }
-  .presenter-bar input[type=text] { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius); padding: 7px 10px; font-family: inherit; font-size: 0.9rem; min-width: 180px; }
-  .presenter-bar .current { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--copper); margin-left: auto; }
  
   .spotlight { border: 1px solid var(--line); border-left: 4px solid var(--copper); background: var(--panel); padding: 20px; border-radius: var(--radius); margin-bottom: 28px; }
   .spotlight .empty { color: var(--muted); font-size: 0.94rem; }
@@ -124,12 +117,6 @@
   .score-pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line); }
   .empty-log { color: var(--muted); font-size: 0.88rem; padding: 16px 0; }
  
-  .presenter-summary { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 30px; }
-  .presenter-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; background: var(--panel); min-width: 140px; }
-  .presenter-card .pname { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
-  .presenter-card .pscore { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: var(--copper); }
-  .presenter-card .pcount { font-size: 0.72rem; color: var(--muted); }
- 
   .rules { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; background: var(--panel); margin-top: 30px; }
   .rules h3 { font-size: 0.95rem; margin: 0 0 10px; }
   .rules ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.86rem; line-height: 1.7; }
@@ -169,10 +156,6 @@
       <h1>loopChain Canlı Jüri Simülasyonu</h1>
       <p>Farklı cihazlardan aynı odaya katılın. Jüri soru çeker, tüm takım anında görür.</p>
     </div>
-    <div class="teams-panel">
-      <span class="lbl">KATILAN TAKIMLAR</span>
-      <div id="teams-list">—</div>
-    </div>
   </header>
  
   <div class="role-badge">
@@ -186,18 +169,12 @@
     <button id="role-switch">odadan çık</button>
   </div>
  
-  <div class="roster-panel">
-    <span class="lbl">TAKIM ÜYELERİ</span>
-    <div id="roster-list">—</div>
+  <div class="teams-section">
+    <h2 class="section-h">Katılan Takımlar</h2>
+    <div id="teams-container">—</div>
   </div>
  
   <div class="juri-only" style="font-size:0.8rem; color:var(--muted); margin-bottom:16px;">Yarışmacı ekranında soru çekme, örnek cevap ve puanlama kontrolleri görünmez — sadece jüri ekranında.</div>
- 
-  <div class="presenter-bar juri-only">
-    <label for="presenter-input">Şu an sunan:</label>
-    <input type="text" id="presenter-input" placeholder="isim yazın (ör. Göktuğ)">
-    <span class="current" id="presenter-current"></span>
-  </div>
  
   <div class="spotlight" id="spotlight">
     <div class="empty" id="spotlight-empty">Henüz soru çekilmedi.</div>
@@ -273,14 +250,11 @@
  
   <div class="waiting-note" id="waiting-note" style="display:none;">Yarışmacı ekranındasınız — soru çekme, cevap görme ve puanlama kontrolleri jüri ekranında.</div>
  
-  <h2 class="section-h">Sunucuya Göre Ortalama</h2>
-  <div class="presenter-summary" id="presenter-summary"><span class="empty-log">Henüz kayıt yok.</span></div>
- 
   <h2 class="section-h">Seans Kaydı <span class="avg" id="avg-display"></span></h2>
   <div id="log-wrap">
     <p class="empty-log" id="log-empty">Kaydedilen soru yok.</p>
     <table class="log" id="log-table" style="display:none;">
-      <thead><tr><th>Sunan</th><th>Jüri</th><th>Soru</th><th>Puan</th><th>Not</th></tr></thead>
+      <thead><tr><th>Jüri</th><th>Soru</th><th>Puan</th><th>Not</th></tr></thead>
       <tbody id="log-body"></tbody>
     </table>
   </div>
@@ -472,18 +446,57 @@
     document.getElementById('waiting-note').style.display = (role === 'yarismaci') ? 'block' : 'none';
   }
  
-  // global teams list (all teams, any room)
+  // global teams list with live member rosters (all teams, any room)
+  var teamMembersUnsub = {};
+  var teamsMeta = {};
+  function renderTeamsContainer(){
+    var el = document.getElementById('teams-container');
+    var ids = Object.keys(teamsMeta);
+    if (ids.length === 0) { el.textContent = 'henüz kimse yok'; return; }
+    el.innerHTML = '';
+    ids.forEach(function(id){
+      var t = teamsMeta[id];
+      var block = document.createElement('div');
+      block.className = 'team-block' + (id === teamId ? ' mine' : '');
+      var h = document.createElement('h4');
+      h.textContent = t.name;
+      block.appendChild(h);
+      if (!t.members || t.members.length === 0) {
+        var e = document.createElement('div'); e.className = 'empty-members'; e.textContent = 'henüz kimse yok';
+        block.appendChild(e);
+      } else {
+        t.members.forEach(function(m){
+          var roleTxt = m.role === 'juri' ? 'Jüri Üyesi' : 'Yarışmacı';
+          var chip = document.createElement('span');
+          chip.className = 'member-chip role-' + m.role + (m.id === myMemberId() ? ' me' : '');
+          chip.innerHTML = '<span class="dot"></span>' + (m.name || 'İsimsiz') + ' <span class="rlabel">(' + roleTxt + ')</span>';
+          block.appendChild(chip);
+        });
+      }
+      el.appendChild(block);
+    });
+  }
   if (db) {
     unsubTeams = onSnapshot(collection(db, 'teams'), function(snap){
-      var el = document.getElementById('teams-list');
-      if (snap.empty) { el.textContent = 'henüz kimse yok'; return; }
-      el.innerHTML = '';
-      snap.forEach(function(d){
-        var span = document.createElement('span');
-        span.className = 'team-chip' + (d.id === teamId ? ' mine' : '');
-        span.textContent = d.data().name;
-        el.appendChild(span);
+      snap.docChanges().forEach(function(change){
+        var id = change.doc.id;
+        if (change.type === 'removed') {
+          if (teamMembersUnsub[id]) { teamMembersUnsub[id](); delete teamMembersUnsub[id]; }
+          delete teamsMeta[id];
+          return;
+        }
+        if (!teamsMeta[id]) teamsMeta[id] = { name: change.doc.data().name, members: [] };
+        else teamsMeta[id].name = change.doc.data().name;
+        if (!teamMembersUnsub[id]) {
+          teamMembersUnsub[id] = onSnapshot(collection(db, 'teams', id, 'members'), function(msnap){
+            var arr = [];
+            msnap.forEach(function(md){ var v = md.data(); arr.push({ id: md.id, name: v.name, role: v.role }); });
+            teamsMeta[id].members = arr;
+            renderTeamsContainer();
+          });
+        }
       });
+      renderTeamsContainer();
     });
   }
  
@@ -510,8 +523,6 @@
   var timerFill = document.getElementById('timer-fill');
   var answerBox = document.getElementById('answer-box');
   var answerText = document.getElementById('answer-text');
-  var presenterInput = document.getElementById('presenter-input');
-  var presenterCurrent = document.getElementById('presenter-current');
  
   var activeState = null;
   var tickInterval = null;
@@ -522,7 +533,7 @@
   function renderSpotlight(){
     if (!activeState) {
       spotlightEmpty.style.display = 'block'; spotlightContent.style.display = 'none';
-      presenterCurrent.textContent = ''; clearInterval(tickInterval); return;
+      clearInterval(tickInterval); return;
     }
     spotlightEmpty.style.display = 'none'; spotlightContent.style.display = 'block';
     spRole.textContent = roleLabel[activeState.role];
@@ -534,7 +545,6 @@
     document.querySelectorAll('.rate-btn').forEach(function(b){
       b.classList.toggle('selected', activeState.score === parseInt(b.getAttribute('data-score'), 10));
     });
-    presenterCurrent.textContent = activeState.presenter ? ('→ ' + activeState.presenter + ' cevaplıyor') : '';
     startTick();
   }
   function startTick(){ clearInterval(tickInterval); tickTimer(); tickInterval = setInterval(tickTimer, 250); }
@@ -556,7 +566,7 @@
     if (queues[role].length === 0) refillQueue(role);
     var item = queues[role].pop();
     updatePoolLabel(role);
-    var state = { role: role, question: item.q, answer: item.a, presenter: presenterInput.value.trim(), timerStartedAt: null, note: '', score: null };
+    var state = { role: role, question: item.q, answer: item.a, timerStartedAt: null, note: '', score: null };
     await setDoc(activeDocRef(), state);
   }
   document.querySelectorAll('[data-role]').forEach(function(btn){
@@ -592,23 +602,7 @@
   var logTable = document.getElementById('log-table');
   var logEmpty = document.getElementById('log-empty');
   var avgDisplay = document.getElementById('avg-display');
-  var presenterSummary = document.getElementById('presenter-summary');
  
-  function renderPresenterSummary(){
-    var byName = {};
-    log.forEach(function(e){ if (!e.presenter) return; if (!byName[e.presenter]) byName[e.presenter] = []; if (e.score) byName[e.presenter].push(e.score); });
-    var names = Object.keys(byName);
-    if (names.length === 0) { presenterSummary.innerHTML = '<span class="empty-log">Henüz kayıt yok.</span>'; return; }
-    presenterSummary.innerHTML = '';
-    names.forEach(function(name){
-      var scores = byName[name];
-      var avg = scores.length ? (scores.reduce(function(s,v){return s+v;},0) / scores.length).toFixed(1) : '—';
-      var div = document.createElement('div');
-      div.className = 'presenter-card';
-      div.innerHTML = '<div class="pname">' + name + '</div><div class="pscore">' + avg + '/5</div><div class="pcount">' + scores.length + ' puanlı soru</div>';
-      presenterSummary.appendChild(div);
-    });
-  }
   function renderLog(){
     if (log.length === 0) { logTable.style.display = 'none'; logEmpty.style.display = 'block'; avgDisplay.textContent = ''; }
     else {
@@ -616,7 +610,7 @@
       log.forEach(function(entry){
         var tr = document.createElement('tr');
         var scoreColor = entry.score >= 4 ? 'var(--good)' : (entry.score >= 3 ? 'var(--warn)' : 'var(--bad)');
-        tr.innerHTML = '<td>' + (entry.presenter || '—') + '</td><td>' + entry.role + '</td><td class="qcol">' + entry.question + '</td>' +
+        tr.innerHTML = '<td>' + entry.role + '</td><td class="qcol">' + entry.question + '</td>' +
           '<td><span class="score-pill" style="color:' + scoreColor + '; border-color:' + scoreColor + '">' + (entry.score || '—') + '/5</span></td>' +
           '<td>' + (entry.note || '<span style="color:var(--muted)">—</span>') + '</td>';
         logBody.appendChild(tr);
@@ -624,13 +618,12 @@
       var scored = log.filter(function(e){ return e.score; });
       avgDisplay.textContent = scored.length ? ('ortalama: ' + (scored.reduce(function(s,e){return s+e.score;},0)/scored.length).toFixed(1) + '/5 · ' + log.length + ' soru') : (log.length + ' soru');
     }
-    renderPresenterSummary();
   }
  
   document.getElementById('sp-save').addEventListener('click', async function(){
     if (!activeState) return;
     await addDoc(collection(db, 'teams', teamId, 'log'), {
-      presenter: activeState.presenter, role: activeState.role, question: activeState.question,
+      role: activeState.role, question: activeState.question,
       score: activeState.score, note: activeState.note, createdAt: serverTimestamp()
     });
     await deleteDoc(activeDocRef());
@@ -668,21 +661,8 @@
       customBanks = byRole;
       Object.keys(baseBanks).forEach(updatePoolLabel);
     });
-    var membersQ = query(collection(db, 'teams', teamId, 'members'), orderBy('joinedAt', 'asc'));
-    unsubMembers = onSnapshot(membersQ, function(snap){
-      var el = document.getElementById('roster-list');
-      if (snap.empty) { el.textContent = 'henüz kimse yok'; return; }
-      el.innerHTML = '';
-      snap.forEach(function(d){
-        var v = d.data();
-        var roleTxt = v.role === 'juri' ? 'Jüri Üyesi' : 'Yarışmacı';
-        var chip = document.createElement('span');
-        chip.className = 'member-chip role-' + v.role + (d.id === myMemberId() ? ' me' : '');
-        chip.innerHTML = '<span class="dot"></span>' + (v.name || 'İsimsiz') + ' <span class="rlabel">(' + roleTxt + ')</span>';
-        el.appendChild(chip);
-      });
-    });
   }
 </script>
 </body>
 </html>
+ 
